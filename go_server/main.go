@@ -31,11 +31,11 @@ type PreviewResponse struct {
 
 var modelInfo ModelInfo
 
-func init() {
-	if err := godotenv.Load(".env"); err != nil {
-		log.Fatal("Error loading .env file", err)
-	}
-}
+// func init() {
+// 	if err := godotenv.Load(".env"); err != nil {
+// 		log.Fatal("Error loading .env file", err)
+// 	}
+// }
 
 func updateModelInfo() error {
 	model_api_url := os.Getenv("MODEL_API_URL")
