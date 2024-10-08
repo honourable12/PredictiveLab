@@ -1,0 +1,8 @@
+model_api/mlplat/
+model_api/model.pk1
+model_api/model_config.json
+
+go_server/.env
+
+go_server/*.csv
+go_server/main_test.go

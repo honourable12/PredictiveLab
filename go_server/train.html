@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<head>
+    <title>Train Model</title>
+    <style>
+        /* Shared Dark Theme Styles */
+        :root {
+            --bg-primary: #1a1b1e;
+            --bg-secondary: #2a2b2e;
+            --bg-tertiary: #3a3b3e;
+            --text-primary: #e1e1e1;
+            --text-secondary: #b0b0b0;
+            --accent-primary: #6ee7b7;
+            --accent-secondary: #34d399;
+            --accent-hover: #10b981;
+            --border-color: #404040;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--accent-primary);
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            border-bottom: 3px solid var(--accent-secondary);
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            animation: slideIn 0.5s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(110, 231, 183, 0.2);
+        }
+
+        /* File Upload Styles */
+        .file-upload-container {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: var(--bg-tertiary);
+        }
+
+        .file-upload-container:hover,
+        .file-upload-container.dragover {
+            border-color: var(--accent-primary);
+            background: rgba(110, 231, 183, 0.1);
+        }
+
+        .file-upload-text {
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            font-size: 14px;
+            color: var(--accent-primary);
+        }
+
+        /* Button Styles */
+        .button {
+            padding: 12px 24px;
+            background-color: var(--accent-primary);
+            color: #1a1b1e;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 5px;
+        }
+
+        .button:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(110, 231, 183, 0.2);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        /* Feature List Styles */
+        .feature-list {
+            background: var(--bg-tertiary);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid var(--accent-primary);
+        }
+
+        ul {
+            list-style: none;
+            margin: 15px 0;
+        }
+
+        li {
+            padding: 8px 0;
+            margin: 5px 0;
+            padding-left: 20px;
+            position: relative;
+            color: var(--text-secondary);
+        }
+
+        li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--accent-primary);
+        }
+
+        /* Prediction Results Styles */
+        .prediction {
+            margin-top: 30px;
+            padding: 25px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            border-left: 4px solid var(--accent-primary);
+        }
+
+        .prediction li {
+            background: var(--bg-secondary);
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Error and Status Messages */
+        .error {
+            color: var(--error-color);
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 30px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px dashed var(--accent-primary);
+        }
+
+        /* Progress Bar Styles */
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress {
+            width: 0%;
+            height: 100%;
+            background: var(--accent-primary);
+            transition: width 0.3s ease;
+        }
+
+        /* Navigation */
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .back-link:hover {
+            color: var(--accent-hover);
+            text-decoration: underline;
+        }
+
+        .target-column {
+            font-weight: bold;
+            color: var(--accent-primary);
+            background: rgba(110, 231, 183, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 20px 10px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+
+            .file-upload-container {
+                height: 150px;
+            }
+        }
+
+        select {
+    width: 100%;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23E1E1E1%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px top 50%;
+    background-size: 12px auto;
+    cursor: pointer;
+}
+
+.model-type-container {
+    background: var(--bg-tertiary);
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+    border-left: 4px solid var(--accent-secondary);
+}
+
+.model-type-container h3 {
+    color: var(--accent-secondary);
+    margin-bottom: 15px;
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Train New Model</h1>
+        <form action="/train" method="post" enctype="multipart/form-data" id="training-form">
+            <div class="form-group">
+                <label for="file">Training Data (CSV file):</label>
+                <div class="file-upload-container" id="drop-zone">
+                    <div class="file-upload-icon">📊</div>
+                    <div class="file-upload-text">
+                        <p>Drag and drop your CSV file here</p>
+                        <p>or click to browse</p>
+                    </div>
+                    <div class="file-name" id="file-name"></div>
+                    <input type="file" id="file" name="file" accept=".csv" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="target_column">Target Column Name:</label>
+                <input type="text" id="target_column" name="target_column" required
+                       placeholder="Enter the name of the column to predict"><br><br>
+                <label for="drop_columns">Column(s) To Be dropped :</label>
+                <input type="text" name="drop_columns" placeholder="Columns to drop (comma-separated)">
+            </div>
+            <div class="form-group model-type-container">
+                <h3>Model Selection</h3>
+                <label for="model_type">Select Model Type:</label>
+                <select id="model_type" name="model_type" required>
+                    <option value="">Choose a model type</option>
+                    <option value="linear_regression">Linear Regression</option>
+                    <option value="logistic_regression">Logistic Regression</option>
+                    <option value="svm">Support Vector Machine (SVM)</option>
+                    <option value="decision_tree">Decision Tree</option>
+                    <option value="random_forest">Random Forest</option>
+                </select>
+            </div>
+
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar">
+                    <div class="progress" id="progress"></div>
+                </div>
+            </div>
+            <button type="submit" class="button" id="submit-button">Train Model</button>
+        </form>
+        <a href="/" class="back-link">← Back to Home</a>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file');
+        const fileName = document.getElementById('file-name');
+        const form = document.getElementById('training-form');
+        const submitButton = document.getElementById('submit-button');
+        const progressContainer = document.getElementById('progress-container');
+        const progress = document.getElementById('progress');
+
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        // Highlight drop zone when file is dragged over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        // Handle dropped files
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        fileInput.addEventListener('change', handleFileSelect, false);
+
+        form.addEventListener('submit', handleSubmit, false);
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files;
+            updateFileName(files[0]);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            updateFileName(files[0]);
+        }
+
+        function updateFileName(file) {
+            if (file) {
+                fileName.textContent = file.name;
+            } else {
+                fileName.textContent = '';
+            }
+        }
+
+        function handleSubmit(e) {
+            e.preventDefault();
+            submitButton.disabled = true;
+            progressContainer.style.display = 'block';
+            
+            // Simulate progress (in a real application, this would be actual upload progress)
+            let width = 0;
+            const interval = setInterval(() => {
+                if (width >= 100) {
+                    clearInterval(interval);
+                    form.submit();
+                } else {
+                    width++;
+                    progress.style.width = width + '%';
+                }
+            }, 50);
+        }
+
+        const modelTypeSelect = document.getElementById('model_type');
+        modelTypeSelect.addEventListener('change', function() {
+        const selectedModel = this.value;
+        console.log('Selected model:', selectedModel);
+        });
+    </script>
+</body>
+</html>

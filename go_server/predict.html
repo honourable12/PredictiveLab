@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Make Predictions</title>
+    <style>
+        /* Shared Dark Theme Styles */
+        :root {
+            --bg-primary: #1a1b1e;
+            --bg-secondary: #2a2b2e;
+            --bg-tertiary: #3a3b3e;
+            --text-primary: #e1e1e1;
+            --text-secondary: #b0b0b0;
+            --accent-primary: #6ee7b7;
+            --accent-secondary: #34d399;
+            --accent-hover: #10b981;
+            --border-color: #404040;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--accent-primary);
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            border-bottom: 3px solid var(--accent-secondary);
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            animation: slideIn 0.5s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(110, 231, 183, 0.2);
+        }
+
+        /* File Upload Styles */
+        .file-upload-container {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: var(--bg-tertiary);
+        }
+
+        .file-upload-container:hover,
+        .file-upload-container.dragover {
+            border-color: var(--accent-primary);
+            background: rgba(110, 231, 183, 0.1);
+        }
+
+        .file-upload-text {
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            font-size: 14px;
+            color: var(--accent-primary);
+        }
+
+        /* Button Styles */
+        .button {
+            padding: 12px 24px;
+            background-color: var(--accent-primary);
+            color: #1a1b1e;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 5px;
+        }
+
+        .button:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(110, 231, 183, 0.2);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        /* Feature List Styles */
+        .feature-list {
+            background: var(--bg-tertiary);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid var(--accent-primary);
+        }
+
+        ul {
+            list-style: none;
+            margin: 15px 0;
+        }
+
+        li {
+            padding: 8px 0;
+            margin: 5px 0;
+            padding-left: 20px;
+            position: relative;
+            color: var(--text-secondary);
+        }
+
+        li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--accent-primary);
+        }
+
+        /* Prediction Results Styles */
+        .prediction {
+            margin-top: 30px;
+            padding: 25px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            border-left: 4px solid var(--accent-primary);
+        }
+
+        .prediction li {
+            background: var(--bg-secondary);
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Error and Status Messages */
+        .error {
+            color: var(--error-color);
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 30px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px dashed var(--accent-primary);
+        }
+
+        /* Progress Bar Styles */
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress {
+            width: 0%;
+            height: 100%;
+            background: var(--accent-primary);
+            transition: width 0.3s ease;
+        }
+
+        /* Navigation */
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .back-link:hover {
+            color: var(--accent-hover);
+            text-decoration: underline;
+        }
+
+        .target-column {
+            font-weight: bold;
+            color: var(--accent-primary);
+            background: rgba(110, 231, 183, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 20px 10px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+
+            .file-upload-container {
+                height: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Make Predictions</h1>
+        {{if .ModelInfo.FeatureColumns}}
+        <p><strong>Current Model Type: {{.ModelInfo.ModelType}}</strong></p>
+            <form action="/predict" method="post">
+                {{range .ModelInfo.FeatureColumns}}
+                    <div class="form-group">
+                        <label for="{{.}}">{{.}}:</label>
+                        <input type="text" id="{{.}}" name="{{.}}" required
+                               placeholder="Enter {{.}} value">
+                    </div>
+                {{end}}
+                <button type="submit" class="button">Generate Prediction</button>
+            </form>
+            
+            {{if .Predictions}}
+                <div class="prediction">
+                    <h3>Predictions:</h3>
+                    <ul>
+                    {{range .Predictions}}
+                        <li>{{.}}</li>
+                    {{end}}
+                    </ul>
+                </div>
+            {{end}}
+            
+            {{if .Error}}
+                <div class="error">
+                    <p>Error: {{.Error}}</p>
+                </div>
+            {{end}}
+        {{else}}
+            <div class="no-model-message">
+                <p>No model is currently trained. Please train a model first.</p>
+                <a href="/train" class="button" style="margin-top: 20px;">Train Model</a>
+            </div>
+        {{end}}
+        <a href="/" class="back-link">← Back to Home</a>
+    </div>
+</body>
+</html>
