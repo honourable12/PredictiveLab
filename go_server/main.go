@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/joho/godotenv"
+	//"github.com/joho/godotenv"
 )
 
 type ModelInfo struct {
@@ -31,11 +31,11 @@ type PreviewResponse struct {
 
 var modelInfo ModelInfo
 
-func init() {
-	if err := godotenv.Load(".env"); err != nil {
-		log.Fatal("Error loading .env file", err)
-	}
-}
+// func init() {
+// 	if err := godotenv.Load(".env"); err != nil {
+// 		log.Fatal("Error loading .env file", err)
+// 	}
+// }
 
 func updateModelInfo() error {
 	model_api_url := os.Getenv("MODEL_API_URL")
@@ -267,6 +267,5 @@ func main() {
 		tmpl.Execute(w, modelInfo)
 	})
 
-	fmt.Println("Starting server on :8080")
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":10000", nil)
 }
