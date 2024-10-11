@@ -1,6 +1,7 @@
 model_api/mlplat/
 model_api/model.pk1
 model_api/model_config.json
+model_api/test_api.py
 
 go_server/.env
 
