@@ -93,7 +93,6 @@ def upload_dataset():
 	except Exception as e:
 		return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
-	# Reset the file pointer
 	file.seek(0)
 	dataset = Dataset(
 		user_id = user_id,
@@ -123,8 +122,6 @@ def train():
 	if not dataset:
 		return jsonify({'error': 'Dataset not found'}), 404
 
-	# Read the dataset
-	#df = pd.read_csv(BytesIO(dataset.file_data))
 	try:
 		df = pd.read_csv(BytesIO(dataset.file_data))
 	except pd.errors.EmptyDataError:
@@ -149,7 +146,6 @@ def train():
 	X = df[feature_columns]
 	y = df[target_column]
 
-	# Create and train model
 	if model_type == 'linear_regression':
 		model = LinearRegression()
 	elif model_type == 'logistic_regression':
@@ -171,7 +167,6 @@ def train():
 
 	model.fit(X, y)
 
-	# Save model
 	model_binary = pickle.dumps(model)
 	config = {
 		'feature_columns': feature_columns,
@@ -301,12 +296,10 @@ def list_datasets():
 def get_predictions(model_id):
 	user_id = get_jwt_identity()
 
-	# Verify model ownership
 	model = MLModel.query.filter_by(id = model_id, user_id = user_id).first()
 	if not model:
 		return jsonify({'error': 'Model not found'}), 404
 
-	# Get predictions with pagination
 	page = request.args.get('page', 1, type = int)
 	per_page = request.args.get('per_page', 10, type = int)
 
