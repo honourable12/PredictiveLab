@@ -3,6 +3,7 @@ model_api/model.pk1
 model_api/model_config.json
 model_api/test_api.py
 model_api/*.csv
+model_api/.env
 
 go_server/.env
 
