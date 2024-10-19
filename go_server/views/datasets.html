@@ -1,0 +1,25 @@
+{{template "layouts/main.html" .}}
+<h1>Your Datasets</h1>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Row Count</th>
+            <th>Created At</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Datasets}}
+        <tr>
+            <td>{{.ID}}</td>
+            <td>{{.Name}}</td>
+            <td>{{.Description}}</td>
+            <td>{{.RowCount}}</td>
+            <td>{{.CreatedAt}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

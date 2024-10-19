@@ -1,0 +1,29 @@
+{{template "layouts/main.html" .}}
+<h1>Your Models</h1>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Model Type</th>
+            <th>Target Column</th>
+            <th>Created At</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Models}}
+        <tr>
+            <td>{{.ID}}</td>
+            <td>{{.Name}}</td>
+            <td>{{.Description}}</td>
+            <td>{{.ModelType}}</td>
+            <td>{{.TargetColumn}}</td>
+            <td>{{.CreatedAt}}</td>
+            <td><a href="/predict/{{.ID}}">Make Prediction</a></td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}
