@@ -1,29 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Make Prediction - ML API Frontend</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-<h1>Make Prediction</h1>
-{{if .error}}
-<p style="color: red;">{{.error}}</p>
-{{end}}
-<form action="/predict/{{.modelID}}" method="post">
-  <div>
-    <label for="input_data">Input Data (JSON format):</label>
-    <textarea id="input_data" name="input_data" rows="5" cols="50" required></textarea>
-  </div>
-  <div>
-    <input type="submit" value="Make Prediction">
-  </div>
-</form>
-{{if .prediction}}
-<h2>Prediction Result</h2>
-<p>Prediction: {{.prediction}}</p>
-<p>Confidence: {{.confidence}}</p>
-{{end}}
-<p><a href="/dashboard">Back to Dashboard</a></p>
+    <h1>Make Prediction</h1>
+    {{if .Error}}
+        <p style="color:red;">{{.Error}}</p>
+    {{end}}
+    <form action="/predict/{{.ModelId}}" method="POST">
+        <textarea name="input_data" placeholder="Input Data (JSON format)" required></textarea>
+        <button type="submit">Predict</button>
+    </form>
+    {{if .Predictions}}
+        <h2>Prediction Results</h2>
+        <ul>
+            {{range .Predictions}}
+                <li>Prediction: {{.PredictionResult}} (Confidence: {{.ConfidenceScore}})</li>
+            {{end}}
+        </ul>
+    {{end}}
 </body>
 </html>

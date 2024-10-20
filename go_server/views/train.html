@@ -1,42 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Train Model - ML API Frontend</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-<h1>Train Model</h1>
-{{if .error}}
-<p style="color: red;">{{.error}}</p>
-{{end}}
-<form action="/train" method="post">
-  <div>
-    <label for="dataset_id">Select Dataset:</label>
-    <select id="dataset_id" name="dataset_id" required>
-      {{range .datasets}}
-      <option value="{{.ID}}">{{.Name}}</option>
-      {{end}}
-    </select>
-  </div>
-  <div>
-    <label for="target_column">Target Column:</label>
-    <input type="text" id="target_column" name="target_column" required>
-  </div>
-  <div>
-    <label for="model_type">Model Type:</label>
-    <select id="model_type" name="model_type" required>
-      <option value="linear_regression">Linear Regression</option>
-      <option value="logistic_regression">Logistic Regression</option>
-      <option value="svm">SVM</option>
-      <option value="decision_tree">Decision Tree</option>
-      <option value="random_forest">Random Forest</option>
-    </select>
-  </div>
-  <div>
-    <input type="submit" value="Train Model">
-  </div>
-</form>
-<p><a href="/dashboard">Back to Dashboard</a></p>
+    <h1>Train Model</h1>
+    {{if .Error}}
+        <p style="color:red;">{{.Error}}</p>
+    {{end}}
+    <form action="/train" method="POST">
+        <select name="dataset_id" required>
+            {{range .Datasets}}
+                <option value="{{.ID}}">{{.Name}}</option>
+            {{end}}
+        </select>
+        <input type="text" name="model_type" placeholder="Model Type" required>
+        <input type="text" name="target_column" placeholder="Target Column" required>
+        <input type="text" name="feature_columns" placeholder="Feature Columns (comma-separated)" required>
+        <button type="submit">Train</button>
+    </form>
+    <p><a href="/models">Back to Models</a></p>
 </body>
 </html>

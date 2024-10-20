@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <h1>Prediction History</h1>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/models">Models</a>
+        <a href="/logout">Logout</a>
+    </nav>
+    <ul>
+        {{range .Predictions}}
+            <li>Prediction ID: {{.ID}} - Result: {{.PredictionResult}} (Confidence: {{.ConfidenceScore}})</li>
+        {{end}}
+    </ul>
+</body>
+</html>

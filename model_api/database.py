@@ -1,89 +1,94 @@
-from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, ForeignKey, Float, LargeBinary
+import sqlalchemy
+from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.dialects.postgresql import JSON
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import JSON, BYTEA
+from config import Config
 
-db = SQLAlchemy()
+SQLALCHEMY_DATABASE_URL = Config.SQLALCHEMY_DATABASE_URI
 
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-class User(db.Model):
-	__tablename__ = 'users'
+Base = sqlalchemy.orm.declarative_base()
 
-	id = db.Column(db.Integer, primary_key = True)
-	username = db.Column(db.String(80), unique = True, nullable = False, index = True)
-	password = db.Column(db.String(255), nullable = False)
-	email = db.Column(db.String(120), unique = True, nullable = True)
-	created_at = db.Column(db.DateTime, default = datetime.utcnow)
-	last_login = db.Column(db.DateTime)
-	is_active = db.Column(db.Boolean, default = True)
+class User(Base):
+    __tablename__ = 'users'
 
-	models = db.relationship('MLModel', backref = 'user', lazy = True, cascade = 'all, delete-orphan')
-	datasets = db.relationship('Dataset', backref = 'user', lazy = True, cascade = 'all, delete-orphan')
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(80), unique=True, nullable=False, index=True)
+    password = Column(String(255), nullable=False)
+    email = Column(String(120), unique=True, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime)
+    is_active = Column(Boolean, default=True)
 
+    models = relationship('MLModel', back_populates='user', cascade='all, delete-orphan')
+    datasets = relationship('Dataset', back_populates='user', cascade='all, delete-orphan')
 
-class MLModel(db.Model):
-	__tablename__ = 'ml_models'
+class MLModel(Base):
+    __tablename__ = 'ml_models'
 
-	id = db.Column(db.Integer, primary_key = True)
-	user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete = 'CASCADE'), nullable = False)
-	name = db.Column(db.String(100), nullable = False)
-	description = db.Column(db.Text)
-	model_type = db.Column(db.String(50), nullable = False)
-	feature_columns = db.Column(JSON, nullable = False)
-	target_column = db.Column(db.String(50), nullable = False)
-	model_data = db.Column(BYTEA, nullable = False)
-	config_data = db.Column(JSON, nullable = False)
-	metrics = db.Column(JSON)
-	created_at = db.Column(db.DateTime, default = datetime.utcnow)
-	updated_at = db.Column(db.DateTime, default = datetime.utcnow, onupdate = datetime.utcnow)
-	is_active = db.Column(db.Boolean, default = True)
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    name = Column(String(100), nullable=False)
+    description = Column(String)
+    model_type = Column(String(50), nullable=False)
+    feature_columns = Column(JSON, nullable=False)
+    target_column = Column(String(50), nullable=False)
+    model_data = Column(LargeBinary, nullable=False)
+    config_data = Column(JSON, nullable=False)
+    metrics = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
 
-	dataset_id = db.Column(db.Integer, db.ForeignKey('datasets.id'))
-	predictions = db.relationship('Prediction', backref = 'model', lazy = True, cascade = 'all, delete-orphan')
+    dataset_id = Column(Integer, ForeignKey('datasets.id'))
+    user = relationship('User', back_populates='models')
+    dataset = relationship('Dataset', back_populates='models')
+    predictions = relationship('Prediction', back_populates='model', cascade='all, delete-orphan')
 
+class Dataset(Base):
+    __tablename__ = 'datasets'
 
-class Dataset(db.Model):
-	__tablename__ = 'datasets'
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    name = Column(String(100), nullable=False)
+    description = Column(String)
+    file_data = Column(LargeBinary)
+    columns = Column(JSON, nullable=False)
+    row_count = Column(Integer)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-	id = db.Column(db.Integer, primary_key = True)
-	user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete = 'CASCADE'), nullable = False)
-	name = db.Column(db.String(100), nullable = False)
-	description = db.Column(db.Text)
-	file_data = db.Column(BYTEA)
-	columns = db.Column(JSON, nullable = False)
-	row_count = db.Column(db.Integer)
-	created_at = db.Column(db.DateTime, default = datetime.utcnow)
-	updated_at = db.Column(db.DateTime, default = datetime.utcnow, onupdate = datetime.utcnow)
+    user = relationship('User', back_populates='datasets')
+    models = relationship('MLModel', back_populates='dataset')
 
-	models = db.relationship('MLModel', backref = 'dataset', lazy = True)
+class Prediction(Base):
+    __tablename__ = 'predictions'
 
+    id = Column(Integer, primary_key=True, index=True)
+    model_id = Column(Integer, ForeignKey('ml_models.id', ondelete='CASCADE'), nullable=False)
+    input_data = Column(JSON, nullable=False)
+    prediction_result = Column(JSON, nullable=False)
+    confidence_score = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-class Prediction(db.Model):
-	__tablename__ = 'predictions'
+    model = relationship('MLModel', back_populates='predictions')
 
-	id = db.Column(db.Integer, primary_key = True)
-	model_id = db.Column(db.Integer, db.ForeignKey('ml_models.id', ondelete = 'CASCADE'), nullable = False)
-	input_data = db.Column(JSON, nullable = False)
-	prediction_result = db.Column(JSON, nullable = False)
-	confidence_score = db.Column(db.Float)
-	created_at = db.Column(db.DateTime, default = datetime.utcnow)
+# Database Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-	__table_args__ = (
-		db.Index('idx_model_created', model_id, created_at),
-	)
-
-
-def init_db(app):
-	db.init_app(app)
-	with app.app_context():
-		db.create_all()
-
+# Create all tables in the database
+def init_db():
+    Base.metadata.create_all(bind=engine)
 
 if __name__ == "__main__":
-	from flask import Flask
-	from config import Config
-
-	app = Flask(__name__)
-	app.config.from_object(Config)
-
-	init_db(app)
-	print("Database initialized successfully!")
+    init_db()
+    print("Database initialized successfully!")
