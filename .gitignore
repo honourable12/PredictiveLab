@@ -9,3 +9,5 @@ go_server/.env
 
 go_server/*.csv
 go_server/main_test.go
+model_api/.pytest_cache
+model_api/__pycache__
