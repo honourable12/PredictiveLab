@@ -23,8 +23,18 @@ from fastapi.responses import FileResponse
 
 from config import Config
 from database import get_db, User, MLModel, Dataset, Prediction
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middelware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+
+)
 
 SECRET_KEY = Config.JWT_SECRET_KEY
 ALGORITHM = Config.ALGORITHM
@@ -34,7 +44,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.now(datetime.timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -318,7 +328,7 @@ def train(
     }
 
     ml_model = MLModel(
-        user_id=current_user.id,
+        user_id=current_user.id, 
         dataset_id=dataset_id,
         name=name,
         description=description,

@@ -4,6 +4,8 @@ model_api/model_config.json
 model_api/test_api.py
 model_api/*.csv
 model_api/.env
+model_api/tests/
+model_api/.pytest_cache
 
 go_server/.env
 
