@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import Dict, List, Optional, Union
 from fastapi import FastAPI, HTTPException, Depends, File, Query, UploadFile, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import joblib
@@ -27,13 +27,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-app.add_middelware(
+app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-
 )
 
 SECRET_KEY = Config.JWT_SECRET_KEY
@@ -104,23 +103,17 @@ def remove_outliers(df, column, method='zscore', threshold=3):
         df = df[(df[column] >= Q1 - 1.5 * IQR) & (df[column] <= Q3 + 1.5 * IQR)]
     return df
 
-# def create_default_admin(db: Session):
-#     hashed_password = hash_password('adminpassword')
-#     new_admin = User(
-#             username='admin',
-#             password=hashed_password,
-#             email='admin@example.com',
-#         )
-#     db.add(new_admin)
-#     db.commit()
-#     print("Default admin created.")
+class ColumnInfo(BaseModel):
+    name: str
+    dtype: str
+
+class PredictionFormResponse(BaseModel):
+    columns: List[ColumnInfo]
+
+class PredictionRequest(BaseModel):
+    data: Dict[str, Union[str, float, int]]
 
 
-# @app.on_event("startup")
-# def startup_event():
-#     db = next(get_db())
-#     create_default_admin(db)
-#     db.close()
 
 @app.post("/register")
 def register(
@@ -195,11 +188,10 @@ def upload_dataset(
 @app.post("/clean_dataset/{dataset_id}")
 def clean_dataset(
     dataset_id: int,
-    operations: List[dict],
+    operations: List[dict]= "handle_missing",
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Retrieve dataset
     dataset = db.query(Dataset).filter_by(id=dataset_id, user_id=current_user.id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
@@ -345,10 +337,10 @@ def train(
 
     return {"message": "Model trained successfully", "model_id": ml_model.id}
 
-@app.post("/predict/{model_id}")
-def predict(
+@app.api_route("/predict/{model_id}", methods=["GET", "POST"])
+async def predict(
     model_id: int,
-    data: dict,
+    data: Optional[PredictionRequest] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -356,8 +348,18 @@ def predict(
     if not ml_model:
         raise HTTPException(status_code=404, detail="Model not found")
 
+    if data is None:
+        try:
+            dataset_path = ml_model.dataset_path  
+            df = pd.read_csv(dataset_path)
+
+            columns = [{"name": col, "dtype": str(df[col].dtype)} for col in df.columns]
+            return {"columns": columns}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"An error occurred while generating the form: {str(e)}")
+
     try:
-        df = pd.DataFrame([data])
+        df = pd.DataFrame([data.data])
         model = pickle.loads(ml_model.model_data)
         config = ml_model.config_data
 
@@ -379,7 +381,7 @@ def predict(
 
         prediction = Prediction(
             model_id=model_id,
-            input_data=data,
+            input_data=data.data,
             prediction_result=predictions,
             confidence_score=confidence_score
         )
@@ -388,8 +390,9 @@ def predict(
 
         return {"predictions": predictions, "confidence_score": confidence_score}
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred during prediction: {str(e)}")
+    except (pickle.UnpicklingError, KeyError) as e:
+        raise HTTPException(status_code=500, detail=f"Model loading error: {str(e)}")
+
 
 @app.get("/models")
 def list_models(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -572,4 +575,5 @@ def delete_account(current_user: User = Depends(get_current_user), db: Session =
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8500)
+
