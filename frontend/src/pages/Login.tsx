@@ -15,7 +15,7 @@ function Login() {
       formData.append('username', data.username);
       formData.append('password', data.password);
 
-      const response = await axios.post('http://localhost:8500/token', formData);
+      const response = await axios.post('http://localhost:8000/token', formData);
       login(response.data.access_token);
       navigate('/dashboard');
     } catch (error) {

@@ -147,23 +147,27 @@ def upload_dataset(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-
+    print(f"Received file: {file.filename}, Name: {name}, Description: {description}")
+    # Validate file type
     if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="Please upload a CSV file")
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a CSV file.")
 
     try:
+        # Attempt to read the CSV
         df = pd.read_csv(file.file)
         if df.empty or df.shape[1] == 0:
-            raise HTTPException(status_code=400, detail="Uploaded file is empty or has no columns")
+            raise HTTPException(status_code=400, detail="Uploaded CSV is empty or has no columns.")
     except pd.errors.EmptyDataError:
-        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
     except pd.errors.ParserError:
-        raise HTTPException(status_code=400, detail="Error parsing CSV file")
+        raise HTTPException(status_code=400, detail="Error parsing CSV file. Ensure the file is properly formatted.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred while reading the file: {str(e)}")
 
+    # Reset file pointer for database storage
     file.file.seek(0)
 
+    # Save dataset to the database
     dataset = Dataset(
         user_id=current_user.id,
         name=name,
@@ -173,17 +177,22 @@ def upload_dataset(
         row_count=len(df)
     )
 
-    db.add(dataset)
-    db.commit()
-    db.refresh(dataset)
+    try:
+        db.add(dataset)
+        db.commit()
+        db.refresh(dataset)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while saving the dataset: {str(e)}")
 
+    # Generate preview
     preview = df.head(10).to_dict(orient="records")
 
     return {
-        "message": "Dataset uploaded successfully",
+        "message": "Dataset uploaded successfully.",
         "dataset_id": dataset.id,
         "preview": preview
     }
+
 
 @app.post("/clean_dataset/{dataset_id}")
 def clean_dataset(

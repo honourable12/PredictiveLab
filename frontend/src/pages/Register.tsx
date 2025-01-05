@@ -14,7 +14,7 @@ function Register() {
       formData.append('password', data.password);
       formData.append('email', data.email);
 
-      await axios.post('http://localhost:8500/register', formData);
+      await axios.post('http://localhost:8000/register', formData);
       navigate('/login');
     } catch (error) {
       console.error('Registration error:', error);

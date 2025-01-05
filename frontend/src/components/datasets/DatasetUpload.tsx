@@ -6,16 +6,25 @@ interface Props {
 }
 
 function DatasetUpload({ onUpload }: Props) {
-  const { register, handleSubmit, reset } = useForm();
+  const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
   const onSubmit = async (data: any) => {
-    const formData = new FormData();
-    formData.append('file', data.file[0]);
-    formData.append('name', data.name);
-    formData.append('description', data.description);
-    
-    await onUpload(formData);
-    reset();
+    try {
+      const formData = new FormData();
+      // Ensure file is the first file from the FileList
+      formData.append('file', data.file[0]);
+      // Add other form fields
+      formData.append('name', data.name);
+      // Only append description if it exists
+      if (data.description) {
+        formData.append('description', data.description);
+      }
+      
+      await onUpload(formData);
+      reset();
+    } catch (error) {
+      console.error('Upload error:', error);
+    }
   };
 
   return (
@@ -24,9 +33,12 @@ function DatasetUpload({ onUpload }: Props) {
         <label className="block text-sm font-medium text-gray-700">Dataset Name</label>
         <input
           type="text"
-          {...register('name', { required: true })}
+          {...register('name', { required: 'Name is required' })}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200"
         />
+        {errors.name && (
+          <p className="text-red-500 text-sm mt-1">{errors.name.message as string}</p>
+        )}
       </div>
       
       <div>
@@ -42,9 +54,20 @@ function DatasetUpload({ onUpload }: Props) {
         <input
           type="file"
           accept=".csv"
-          {...register('file', { required: true })}
+          {...register('file', { 
+            required: 'File is required',
+            validate: {
+              isCsv: (files) => {
+                if (!files?.[0]) return 'File is required';
+                return files[0].name.endsWith('.csv') || 'File must be a CSV';
+              }
+            }
+          })}
           className="mt-1 block w-full"
         />
+        {errors.file && (
+          <p className="text-red-500 text-sm mt-1">{errors.file.message as string}</p>
+        )}
       </div>
       
       <button
