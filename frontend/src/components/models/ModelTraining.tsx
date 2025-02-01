@@ -3,17 +3,24 @@ import { useForm } from 'react-hook-form';
 import type { Dataset } from '../datasets/DatasetList';
 
 interface ModelTrainingForm {
-  name: string;
   dataset_id: number;
+  name: string;
   target_column: string;
   model_type: string;
-  description?: string;
+  description?: string; // FIXED: Changed from string[] to string
   drop_columns?: string[];
 }
 
 interface Props {
   datasets: Dataset[];
-  onTrain: (data: ModelTrainingForm) => Promise<void>;
+  onTrain: (data: {
+    ml_model_type: string;
+    dataset_id: number;
+    name: string;
+    description: string; // FIXED: Ensure description is always a string
+    target_column: string;
+    drop_columns: string[];
+  }) => Promise<void>;
 }
 
 function ModelTraining({ datasets, onTrain }: Props) {
@@ -31,12 +38,18 @@ function ModelTraining({ datasets, onTrain }: Props) {
   }, [selectedDatasetId, datasets]);
 
   const onSubmit = (data: ModelTrainingForm) => {
-    data.dataset_id = Number(data.dataset_id);
-    // Filter out empty values from drop_columns
-    if (data.drop_columns) {
-      data.drop_columns = data.drop_columns.filter(Boolean);
-    }
-    onTrain(data);
+    const formattedData = {
+      dataset_id: Number(data.dataset_id), // Ensure it's a number
+      target_column: data.target_column,
+      ml_model_type: data.model_type, // Keep ml_model_type
+      name: data.name,
+      description: typeof data.description === 'string' ? data.description : "string", // FIXED: Ensure string
+      drop_columns: data.drop_columns?.length ? data.drop_columns : [] // FIXED: Ensure it's always an array
+    };
+
+    console.log("Final API Request:", JSON.stringify(formattedData, null, 2)); // Debugging log
+
+    onTrain(formattedData);
   };
 
   return (
@@ -56,7 +69,10 @@ function ModelTraining({ datasets, onTrain }: Props) {
       <div>
         <label className="block text-sm font-medium text-gray-700">Dataset</label>
         <select
-          {...register('dataset_id', { required: 'Dataset is required' })}
+          {...register('dataset_id', {
+            required: 'Dataset is required',
+            valueAsNumber: true // Ensure the value is a number
+          })}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200"
         >
           <option value="">Select a dataset</option>
@@ -136,13 +152,12 @@ function ModelTraining({ datasets, onTrain }: Props) {
           {...register('description')}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200"
           rows={3}
-          placeholder="Enter a description for your model"
         />
       </div>
 
       <button
         type="submit"
-        className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+        className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
       >
         Train Model
       </button>

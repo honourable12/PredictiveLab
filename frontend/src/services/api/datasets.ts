@@ -13,4 +13,5 @@ export const datasetsApi = {
   delete: (id: number) => api.delete(`/delete_dataset/${id}`),
   update: (id: number, formData: FormData) => api.put(`/update_dataset/${id}`, formData),
   visualize: (id: number) => api.get(`/visualize_dataset/${id}`),
+  clean: (id: number, operations: any[]) => api.post(`/clean_dataset/${id}`, { operations }),
 };

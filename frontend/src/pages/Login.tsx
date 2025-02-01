@@ -8,16 +8,14 @@ function Login() {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const navigate = useNavigate();
   const { login } = useAuth();
-
   const onSubmit = async (data: any) => {
     try {
       const formData = new FormData();
       formData.append('username', data.username);
       formData.append('password', data.password);
-
       const response = await axios.post('http://localhost:8000/token', formData);
       login(response.data.access_token);
-      navigate('/dashboard');
+      navigate('/app/dashboard');
     } catch (error) {
       console.error('Login error:', error);
     }
@@ -28,6 +26,11 @@ function Login() {
       <div className="bg-white p-8 rounded-lg shadow-md w-96">
         <h2 className="text-2xl font-bold text-center mb-6">Login</h2>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {errors.root && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4">
+              <p className="text-red-700">{errors.root.message as string}</p>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700">Username</label>
             <input

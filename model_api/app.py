@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Union
 from fastapi import FastAPI, HTTPException, Depends, File, Query, UploadFile, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import joblib
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -29,7 +29,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -253,154 +253,188 @@ def clean_dataset(
     }
 
 
+class TrainModelRequest(BaseModel):
+    dataset_id: int
+    target_column: str
+    ml_model_type: str = "random_forest"
+    name: str = "Unnamed Model"
+    description: Optional[str] = None
+    drop_columns: Optional[List[str]] = None
+
 @app.post("/train")
-def train(
-    dataset_id: int,
-    target_column: str,
-    model_type: str = "random_forest",
-    name: str = "Unnamed Model",
-    description: str = None,
-    drop_columns: List[str] = Query(None),  # New parameter for columns to drop
+async def train(
+    dataset_id: int = Form(...),
+    target_column: str = Form(...),
+    ml_model_type: str = Form("random_forest"),
+    name: str = Form("Unnamed Model"),
+    description: Optional[str] = Form(None),
+    drop_columns: Optional[str] = Form(None),  # Accept as comma-separated string
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    # Convert drop_columns string to list
+    drop_columns_list = drop_columns.split(",") if drop_columns else []
+
+    print("Received form-data:", {
+        "dataset_id": dataset_id,
+        "target_column": target_column,
+        "ml_model_type": ml_model_type,
+        "name": name,
+        "description": description,
+        "drop_columns": drop_columns_list
+    })
+
+    # Fetch dataset
     dataset = db.query(Dataset).filter_by(id=dataset_id, user_id=current_user.id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
+    # Read dataset
     try:
         df = pd.read_csv(BytesIO(dataset.file_data))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading dataset: {str(e)}")
 
+    # Check target column
     if target_column not in df.columns:
         raise HTTPException(status_code=400, detail="Target column not found in dataset")
 
-    if drop_columns:
-        for col in drop_columns:
-            if col in df.columns and col != target_column:
-                df = df.drop(columns=[col])
-            else:
-                raise HTTPException(status_code=400, detail=f"Column '{col}' cannot be dropped")
+    # Drop specified columns
+    for col in drop_columns_list:
+        if col in df.columns and col != target_column:
+            df = df.drop(columns=[col])
+        else:
+            raise HTTPException(status_code=400, detail=f"Column '{col}' cannot be dropped")
 
+    # Identify feature columns
     feature_columns = [col for col in df.columns if col != target_column]
 
+    # Encode categorical variables
+    label_encoders = {}
     for column in df.select_dtypes(include=['object']).columns:
         if column != target_column:
             le = LabelEncoder()
             df[column] = le.fit_transform(df[column])
+            label_encoders[column] = list(le.classes_)
 
+    # Split dataset
     X = df[feature_columns]
     y = df[target_column]
 
-    if model_type == 'linear_regression':
+    # Model selection
+    if ml_model_type == 'linear_regression':
         model = LinearRegression()
-    elif model_type == 'logistic_regression':
+    elif ml_model_type == 'logistic_regression':
         model = LogisticRegression(random_state=42)
-    elif model_type == 'svm':
+    elif ml_model_type == 'svm':
         model = SVC(random_state=42)
-    elif model_type == 'decision_tree':
-        if df[target_column].dtype == 'object':
-            model = DecisionTreeClassifier(random_state=42)
-        else:
-            model = DecisionTreeRegressor(random_state=42)
-    elif model_type == 'random_forest':
-        if df[target_column].dtype == 'object':
-            model = RandomForestClassifier(n_estimators=100, random_state=42)
-        else:
-            model = RandomForestRegressor(n_estimators=100, random_state=42)
+    elif ml_model_type == 'decision_tree':
+        model = DecisionTreeClassifier(random_state=42) if y.dtype == 'object' else DecisionTreeRegressor(random_state=42)
+    elif ml_model_type == 'random_forest':
+        model = RandomForestClassifier(n_estimators=100, random_state=42) if y.dtype == 'object' else RandomForestRegressor(n_estimators=100, random_state=42)
     else:
         raise HTTPException(status_code=400, detail="Invalid model type")
 
+    # Train model
     model.fit(X, y)
 
+    # Serialize model
     model_binary = pickle.dumps(model)
 
-    config = {
-        'feature_columns': feature_columns,
-        'target_column': target_column,
-        'preprocessing': {
-            'label_encoders': {
-                col: list(set(df[col]))
-                for col in df.select_dtypes(include=['object']).columns
-                if col != target_column
-            }
-        }
-    }
-
+    # Save model details
     ml_model = MLModel(
-        user_id=current_user.id, 
+        user_id=current_user.id,
         dataset_id=dataset_id,
         name=name,
         description=description,
-        model_type=model_type,
+        model_type=ml_model_type,
         feature_columns=feature_columns,
         target_column=target_column,
         model_data=model_binary,
-        config_data=config
+        config_data={"feature_columns": feature_columns, "target_column": target_column, "preprocessing": {"label_encoders": label_encoders}}
     )
 
     db.add(ml_model)
     db.commit()
     db.refresh(ml_model)
 
-    return {"message": "Model trained successfully", "model_id": ml_model.id}
+    return {
+        "message": "Model trained successfully",
+        "model_id": ml_model.id,
+        "received_data": {
+            "dataset_id": dataset_id,
+            "target_column": target_column,
+            "ml_model_type": ml_model_type,
+            "name": name,
+            "description": description,
+            "drop_columns": drop_columns_list
+        }
+    }
 
 @app.api_route("/predict/{model_id}", methods=["GET", "POST"])
 async def predict(
     model_id: int,
-    data: Optional[PredictionRequest] = None,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    feature_values: Optional[str] = Form(None)  # Accepts feature values as a comma-separated string
 ):
     ml_model = db.query(MLModel).filter_by(id=model_id, user_id=current_user.id).first()
     if not ml_model:
         raise HTTPException(status_code=404, detail="Model not found")
 
-    if data is None:
+    if feature_values is None:
         try:
-            dataset_path = ml_model.dataset_path  
+            dataset_path = ml_model.dataset_path
             df = pd.read_csv(dataset_path)
-
             columns = [{"name": col, "dtype": str(df[col].dtype)} for col in df.columns]
             return {"columns": columns}
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"An error occurred while generating the form: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error generating form: {str(e)}")
 
     try:
-        df = pd.DataFrame([data.data])
         model = pickle.loads(ml_model.model_data)
         config = ml_model.config_data
+        feature_columns = config['feature_columns']
 
-        missing_columns = set(config['feature_columns']) - set(df.columns)
-        if missing_columns:
-            raise HTTPException(status_code=400, detail=f"Missing features: {missing_columns}")
+        # Convert the form-data input into a dictionary
+        feature_values_list = feature_values.split(",")
+        if len(feature_values_list) != len(feature_columns):
+            raise HTTPException(status_code=400, detail="Feature count mismatch")
 
+        # Map feature values to the correct column names
+        input_data = dict(zip(feature_columns, feature_values_list))
+        df = pd.DataFrame([input_data])
+
+        # Encode categorical variables
         for column, unique_values in config['preprocessing']['label_encoders'].items():
             if column in df.columns:
                 df[column] = df[column].map({val: idx for idx, val in enumerate(unique_values)})
                 if df[column].isnull().any():
                     raise HTTPException(status_code=400, detail=f"Invalid categorical value in column {column}")
 
-        predictions = model.predict(df[config['feature_columns']]).tolist()
+        predictions = model.predict(df[feature_columns]).tolist()
 
         confidence_score = None
         if hasattr(model, 'predict_proba'):
-            confidence_score = model.predict_proba(df[config['feature_columns']])[0].max()
+            confidence_score = model.predict_proba(df[feature_columns])[0].max()
 
         prediction = Prediction(
             model_id=model_id,
-            input_data=data.data,
+            input_data=input_data,
             prediction_result=predictions,
             confidence_score=confidence_score
         )
         db.add(prediction)
         db.commit()
 
-        return {"predictions": predictions, "confidence_score": confidence_score}
+        return {
+            "predictions": predictions,
+            "confidence_score": confidence_score,
+            "received_features": input_data
+        }
 
-    except (pickle.UnpicklingError, KeyError) as e:
-        raise HTTPException(status_code=500, detail=f"Model loading error: {str(e)}")
+    except (pickle.UnpicklingError, KeyError, ValueError) as e:
+        raise HTTPException(status_code=500, detail=f"Model loading or prediction error: {str(e)}")
 
 
 @app.get("/models")
