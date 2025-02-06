@@ -1,3 +1,14 @@
+import axios from 'axios';
+
+// Base axios instance with common config
+export const api = axios.create({
+  baseURL: '/api',
+  headers: {
+    'Accept': 'application/json',
+  },
+});
+
+// Models API endpoints
 export const modelsApi = {
   list: () => api.get('/models'),
 
@@ -10,11 +21,15 @@ export const modelsApi = {
     drop_columns?: string[];
   }) =>
     api.post('/train', data, {
-      headers: { 'Content-Type': 'multipart/form-data' }, // Keep unchanged
+      headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
   predict: (modelId: number, formData: FormData) =>
-    api.post(`/predict/${modelId}`, formData), // Axios automatically sets multipart/form-data
+    api.post(`/predict/${modelId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
 
   getPredictions: (modelId: number, page = 1) =>
     api.get(`/predictions/${modelId}?page=${page}`),
@@ -24,14 +39,12 @@ export const modelsApi = {
 
   getFeatures: async (modelId: number) => {
     try {
-      console.log(`Fetching model features for model ID: ${modelId}`); // ✅ Debug log before request
-
+      console.log(`Fetching model features for model ID: ${modelId}`);
       const response = await api.get(`/predict/${modelId}`);
-
-      console.log("API Response for /predict:", response.data); // ✅ Debug log after success
+      console.log("API Response for /predict:", response.data);
       return response;
     } catch (error: any) {
-      console.error("API Error on /predict:", error.response || error); // ✅ Debug log on failure
+      console.error("API Error on /predict:", error.response || error);
       throw error;
     }
   },

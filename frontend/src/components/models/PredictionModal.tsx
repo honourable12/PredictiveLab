@@ -1,35 +1,59 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { X } from 'lucide-react';
+import { modelsApi } from '../../services/api';
+
+interface Column {
+  name: string;
+  dtype: string;
+}
 
 interface PredictionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (formData: FormData) => Promise<void>;
-  features: string[];
-  categoryEncoders: Record<string, Record<string, number>>; // Mapping categorical values
+  modelId: number;
 }
 
-function PredictionModal({ isOpen, onClose, onSubmit, features, categoryEncoders }: PredictionModalProps) {
+function PredictionModal({ isOpen, onClose, onSubmit, modelId }: PredictionModalProps) {
+  const [columns, setColumns] = useState<Column[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { register, handleSubmit, formState: { errors } } = useForm();
+
+  useEffect(() => {
+    const fetchColumns = async () => {
+      try {
+        setIsLoading(true);
+        const response = await modelsApi.getFeatures(modelId);
+        setColumns(response.data.columns);
+      } catch (error) {
+        console.error('Error fetching columns:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isOpen && modelId) {
+      fetchColumns();
+    }
+  }, [isOpen, modelId]);
 
   if (!isOpen) return null;
 
-  const handleFormSubmit = (formData: any) => {
-    // Convert input values to a formatted feature string
-    const featureValuesArray = features.map((feature) => {
-      const value = formData[feature];
-      return isNaN(value) ? categoryEncoders[feature]?.[value] ?? value : value; // Encode categorical
-    });
+  const handleFormSubmit = (data: Record<string, string>) => {
+    // Create FormData object
+    const formData = new FormData();
 
-    const featureValues = featureValuesArray.join(","); // Convert array to comma-separated string
+    // Convert form data to comma-separated string
+    const featureValues = columns
+      .map(column => data[column.name])
+      .join(',');
 
-    const formDataObject = new FormData();
-    formDataObject.append("feature_values", featureValues); // Add feature string to form-data
+    // Add to FormData
+    formData.append('feature_values', featureValues);
 
-    console.log("Final Prediction Form-Data:", featureValues); // Debugging log
-
-    onSubmit(formDataObject); // Send as form-data
+    console.log('Submitting feature values:', featureValues);
+    onSubmit(formData);
   };
 
   return (
@@ -42,47 +66,53 @@ function PredictionModal({ isOpen, onClose, onSubmit, features, categoryEncoders
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-          {features.map((feature) => (
-            <div key={feature}>
-              <label className="block text-sm font-medium text-gray-700">
-                {feature}
-              </label>
-              <input
-                type="text"
-                {...register(feature, {
-                  required: `${feature} is required`,
-                  validate: value => {
-                    if (isNaN(value) && typeof value !== 'string') {
-                      return 'Must be a number or text';
+        {isLoading ? (
+          <div className="py-4 text-center text-gray-600">Loading model features...</div>
+        ) : (
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+            {columns.map((column) => (
+              <div key={column.name}>
+                <label className="block text-sm font-medium text-gray-700">
+                  {column.name} ({column.dtype})
+                </label>
+                <input
+                  type="text"
+                  {...register(column.name, {
+                    required: `${column.name} is required`,
+                    validate: value => {
+                      if (column.dtype.includes('float') || column.dtype.includes('int')) {
+                        return !isNaN(parseFloat(value)) || `${column.name} must be a number`;
+                      }
+                      return true;
                     }
-                    return true;
-                  }
-                })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200"
-              />
-              {errors[feature] && (
-                <p className="text-red-500 text-sm mt-1">{errors[feature].message as string}</p>
-              )}
-            </div>
-          ))}
+                  })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200"
+                />
+                {errors[column.name] && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors[column.name]?.message as string}
+                  </p>
+                )}
+              </div>
+            ))}
 
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-            >
-              Predict
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              >
+                Predict
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

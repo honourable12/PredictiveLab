@@ -7,19 +7,19 @@ interface ModelTrainingForm {
   name: string;
   target_column: string;
   model_type: string;
-  description?: string; // FIXED: Changed from string[] to string
+  description?: string;
   drop_columns?: string[];
 }
 
 interface Props {
   datasets: Dataset[];
   onTrain: (data: {
-    ml_model_type: string;
     dataset_id: number;
-    name: string;
-    description: string; // FIXED: Ensure description is always a string
     target_column: string;
-    drop_columns: string[];
+    ml_model_type: string;
+    name: string;
+    description?: string;
+    drop_columns?: string[];
   }) => Promise<void>;
 }
 
@@ -39,16 +39,15 @@ function ModelTraining({ datasets, onTrain }: Props) {
 
   const onSubmit = (data: ModelTrainingForm) => {
     const formattedData = {
-      dataset_id: Number(data.dataset_id), // Ensure it's a number
+      dataset_id: Number(data.dataset_id),
       target_column: data.target_column,
-      ml_model_type: data.model_type, // Keep ml_model_type
+      ml_model_type: data.model_type,
       name: data.name,
-      description: typeof data.description === 'string' ? data.description : "string", // FIXED: Ensure string
-      drop_columns: data.drop_columns?.length ? data.drop_columns : [] // FIXED: Ensure it's always an array
+      description: data.description,
+      drop_columns: data.drop_columns
     };
 
-    console.log("Final API Request:", JSON.stringify(formattedData, null, 2)); // Debugging log
-
+    console.log("Submitting training data:", formattedData);
     onTrain(formattedData);
   };
 
