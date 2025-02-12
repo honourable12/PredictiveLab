@@ -41,10 +41,19 @@ export const modelsApi = {
   export: (modelId: number) => api.get(`/export_model/${modelId}`),
   attachDataset: (modelId: number, datasetId: number) => 
     api.put(`/attach_dataset_to_model/${modelId}`, { dataset_id: datasetId }),
-  getFeatures(modelId: number) {
-    
-  }
+    getFeatures: async (modelId: number) => {
+    try {
+      console.log(`Fetching model features for model ID: ${modelId}`);
+      const response = await api.get(`/predict/${modelId}`);
+      console.log("API Response for /predict:", response.data);
+      return response;
+    } catch (error: any) {
+      console.error("API Error on /predict:", error.response || error);
+      throw error;
+    }
+  },
 };
+
 
 export const userApi = {
   getProfile: () => api.get('/profile'),
