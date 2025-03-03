@@ -36,23 +36,39 @@ export const datasetsApi = {
 export const modelsApi = {
   list: () => api.get('/models'),
   train: (data: any) => api.post('/train', data),
-  predict: (modelId: number, data: any) => api.post(`/predict/${modelId}`, data),
+  predict: async (modelId: number, formData: FormData, token: string) => {
+    try {
+      console.log(`Sending prediction request for model ID: ${modelId}`);
+      const response = await api.post(`/predict/${modelId}`, formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+      console.log("Prediction response:", response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("Prediction API error:", error.response || error);
+      throw error;
+    }
+  },
   getPredictions: (modelId: number, page = 1) => api.get(`/predictions/${modelId}?page=${page}`),
   export: (modelId: number) => api.get(`/export_model/${modelId}`),
-  attachDataset: (modelId: number, datasetId: number) => 
+  attachDataset: (modelId: number, datasetId: number) =>
     api.put(`/attach_dataset_to_model/${modelId}`, { dataset_id: datasetId }),
-    getFeatures: async (modelId: number) => {
+  getFeatures: async (modelId: number) => {
     try {
       console.log(`Fetching model features for model ID: ${modelId}`);
       const response = await api.get(`/predict/${modelId}`);
       console.log("API Response for /predict:", response.data);
-      return response;
+      return response.data;
     } catch (error: any) {
       console.error("API Error on /predict:", error.response || error);
       throw error;
     }
   },
 };
+
 
 
 export const userApi = {

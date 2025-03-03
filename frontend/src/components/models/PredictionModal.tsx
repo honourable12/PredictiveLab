@@ -18,16 +18,22 @@ interface PredictionModalProps {
 function PredictionModal({ isOpen, onClose, onSubmit, modelId }: PredictionModalProps) {
   const [columns, setColumns] = useState<Column[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const [predictionResult, setPredictionResult] = useState<string | null>(null);
+  const { register, handleSubmit, formState: { errors }, reset } = useForm();
 
   useEffect(() => {
     const fetchColumns = async () => {
       try {
         setIsLoading(true);
         const response = await modelsApi.getFeatures(modelId);
-        setColumns(response.data.columns);
+
+        if (!response?.columns || !Array.isArray(response.columns)) {
+          throw new Error("Invalid response structure from API");
+        }
+
+        setColumns(response.columns);
       } catch (error) {
-        console.error('Error fetching columns:', error);
+        console.error("Error fetching columns:", error);
       } finally {
         setIsLoading(false);
       }
@@ -38,27 +44,31 @@ function PredictionModal({ isOpen, onClose, onSubmit, modelId }: PredictionModal
     }
   }, [isOpen, modelId]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) {
+      reset();
+      setPredictionResult(null);
+    }
+  }, [isOpen, reset]);
 
-  const handleFormSubmit = (data: Record<string, string>) => {
-    // Create FormData object
+  const handleFormSubmit = async (data: Record<string, string>) => {
     const formData = new FormData();
-
-    // Convert form data to comma-separated string
-    const featureValues = columns
-      .map(column => data[column.name])
-      .join(',');
-
-    // Add to FormData
+    const featureValues = columns.map(column => data[column.name] || "").join(',');
     formData.append('feature_values', featureValues);
 
-    console.log('Submitting feature values:', featureValues);
-    onSubmit(formData);
+    try {
+      const result = await onSubmit(formData);
+      setPredictionResult(result as unknown as string);
+    } catch (error) {
+      console.error("Error making prediction:", error);
+    }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Make Prediction</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
@@ -68,7 +78,7 @@ function PredictionModal({ isOpen, onClose, onSubmit, modelId }: PredictionModal
 
         {isLoading ? (
           <div className="py-4 text-center text-gray-600">Loading model features...</div>
-        ) : (
+        ) : columns.length > 0 ? (
           <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
             {columns.map((column) => (
               <div key={column.name}>
@@ -76,7 +86,7 @@ function PredictionModal({ isOpen, onClose, onSubmit, modelId }: PredictionModal
                   {column.name} ({column.dtype})
                 </label>
                 <input
-                  type="text"
+                  type={column.dtype.includes('int') || column.dtype.includes('float') ? "number" : "text"}
                   {...register(column.name, {
                     required: `${column.name} is required`,
                     validate: value => {
@@ -89,9 +99,7 @@ function PredictionModal({ isOpen, onClose, onSubmit, modelId }: PredictionModal
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200"
                 />
                 {errors[column.name] && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors[column.name]?.message as string}
-                  </p>
+                  <p className="text-red-500 text-sm mt-1">{errors[column.name]?.message as string}</p>
                 )}
               </div>
             ))}
@@ -112,8 +120,24 @@ function PredictionModal({ isOpen, onClose, onSubmit, modelId }: PredictionModal
               </button>
             </div>
           </form>
+        ) : (
+          <p className="text-center text-gray-600">No features available.</p>
         )}
       </div>
+
+      {predictionResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Prediction Result</h2>
+              <button onClick={() => setPredictionResult(null)} className="text-gray-500 hover:text-gray-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-gray-700">{predictionResult}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

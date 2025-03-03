@@ -98,20 +98,18 @@ function Models() {
     }
   };
 
-  const handlePredictionSubmit = async (formData: FormData) => {
-    if (!selectedModel) return;
+const handlePredictionSubmit = async (formData: FormData, token: string) => {
+  if (!selectedModel) return;
 
-    try {
-      console.log("Submitting prediction for model:", selectedModel.id);
-      setError(null);
-      const response = await modelsApi.predict(selectedModel.id, formData);
-      setPredictionResult(response.data);
-      setIsPredictionModalOpen(false);
-    } catch (error: any) {
-      console.error("Prediction submission error:", error);
-      setError(error.response?.data?.detail || "Failed to make prediction.");
-    }
-  };
+  try {
+    const response = await modelsApi.predict(selectedModel.id, formData, token);
+    setPredictionResult(response);
+    setIsPredictionModalOpen(false);
+  } catch (error: any) {
+    console.error('Prediction submission error:', error);
+    setError(error.response?.data?.detail || 'Failed to make prediction.');
+  }
+};
 
   const handleViewPredictions = async (id: number) => {
     try {

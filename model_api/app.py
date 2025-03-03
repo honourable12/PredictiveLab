@@ -29,7 +29,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", " http://localhost:8501"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -371,58 +371,84 @@ async def train(
         }
     }
 
-@app.api_route("/predict/{model_id}", methods=["GET", "POST"])
+
+@app.api_route("/predict/{model_id}", methods = ["GET", "POST"])
 async def predict(
     model_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     feature_values: Optional[str] = Form(None)  # Accepts feature values as a comma-separated string
 ):
-    ml_model = db.query(MLModel).filter_by(id=model_id, user_id=current_user.id).first()
+    ml_model = db.query(MLModel).filter_by(id = model_id, user_id = current_user.id).first()
     if not ml_model:
-        raise HTTPException(status_code=404, detail="Model not found")
+        raise HTTPException(status_code = 404, detail = "Model not found")
 
     if feature_values is None:
         try:
-            dataset_path = ml_model.dataset_path
-            df = pd.read_csv(dataset_path)
-            columns = [{"name": col, "dtype": str(df[col].dtype)} for col in df.columns]
-            return {"columns": columns}
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error generating form: {str(e)}")
+            # ✅ Use feature_columns from model config
+            config = ml_model.config_data
+            feature_columns = config.get('feature_columns', [])  # Ensure key exists
 
+            if not feature_columns:
+                raise HTTPException(status_code = 404, detail = "Feature columns not found in config")
+
+            # ✅ Return structured response
+            return {"columns": [{"name": col, "dtype": "object"} for col in feature_columns]}
+
+        except Exception as e:
+            raise HTTPException(status_code = 500, detail = f"Error generating form: {str(e)}")
+
+    # ✅ Handle POST request: Perform Prediction
     try:
-        model = pickle.loads(ml_model.model_data)
+        model = pickle.loads(ml_model.model_data)  # Load trained model
         config = ml_model.config_data
         feature_columns = config['feature_columns']
 
-        # Convert the form-data input into a dictionary
+        # Convert the input form-data into a dictionary
         feature_values_list = feature_values.split(",")
         if len(feature_values_list) != len(feature_columns):
-            raise HTTPException(status_code=400, detail="Feature count mismatch")
+            raise HTTPException(status_code = 400, detail = "Feature count mismatch")
 
-        # Map feature values to the correct column names
+        # Create input DataFrame for model prediction
         input_data = dict(zip(feature_columns, feature_values_list))
         df = pd.DataFrame([input_data])
 
-        # Encode categorical variables
-        for column, unique_values in config['preprocessing']['label_encoders'].items():
+        # Encode categorical variables if necessary
+        for column, unique_values in config.get('preprocessing', {}).get('label_encoders', {}).items():
             if column in df.columns:
                 df[column] = df[column].map({val: idx for idx, val in enumerate(unique_values)})
                 if df[column].isnull().any():
-                    raise HTTPException(status_code=400, detail=f"Invalid categorical value in column {column}")
+                    raise HTTPException(status_code = 400, detail = f"Invalid categorical value in column {column}")
 
+        # Perform prediction
         predictions = model.predict(df[feature_columns]).tolist()
 
+        # Get confidence score if available
         confidence_score = None
         if hasattr(model, 'predict_proba'):
-            confidence_score = model.predict_proba(df[feature_columns])[0].max()
+            # Extract NumPy value and convert to Python float
+            proba_values = model.predict_proba(df[feature_columns])
+            max_proba = proba_values[0].max()
 
+            # Convert NumPy type to native Python float
+            if hasattr(max_proba, 'item'):
+                confidence_score = max_proba.item()
+            else:
+                confidence_score = float(max_proba)
+
+        # Ensure input_data is serializable to JSON
+        json_input_data = json.dumps(input_data)
+
+        # Ensure predictions are serializable to JSON
+        json_predictions = json.dumps(predictions)
+
+        # Store prediction result in the database
         prediction = Prediction(
-            model_id=model_id,
-            input_data=input_data,
-            prediction_result=predictions,
-            confidence_score=confidence_score
+            model_id = model_id,
+            input_data = json_input_data,
+            prediction_result = json_predictions,
+            confidence_score = confidence_score,
+            created_at = datetime.utcnow()
         )
         db.add(prediction)
         db.commit()
@@ -434,7 +460,7 @@ async def predict(
         }
 
     except (pickle.UnpicklingError, KeyError, ValueError) as e:
-        raise HTTPException(status_code=500, detail=f"Model loading or prediction error: {str(e)}")
+        raise HTTPException(status_code = 500, detail = f"Model loading or prediction error: {str(e)}")
 
 
 @app.get("/models")
